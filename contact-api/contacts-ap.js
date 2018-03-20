@@ -1,28 +1,28 @@
-var http = require('http');
+let http = require('http');
 
-var contacts = [
+let contacts = [
     {id: 0, first: 'James', last: 'Dougal', email: 'james@gmail.com'},
     { id: 1, first: 'Rebecca', last: 'Martin', email: 'rebecca@gmail.com' },
     { id: 2, first: 'Laura', last: 'Love', email: 'laura@gmail.com' },
 ];
 
-var lastId = 0;
+let lastId = 0;
 
-var findContact = function(id) {
+let findContact = function(id) {
     id = parseInt(id, 10);
     return contacts.find(function(contact) {
         return contact.id === id;
     });
 };
 
-var deleteContact = function(contactToDelete) {
+let deleteContact = function(contactToDelete) {
     contacts = contacts.filter(function(contact) {
         return contact !== contactToDelete;
     });
 };
 
-var readBody = function(request, callback) {
-    var body = '';
+let readBody = function(request, callback) {
+    let body = '';
     request.on('data', function(chunk) {
         body += chunk.toString();
     });
@@ -31,49 +31,76 @@ var readBody = function(request, callback) {
     });
 };
 
-var matches = function(request, method, path) {
+let matches = function(request, method, path) {
     return request.method === method &&
            request.url.startsWith(path);
 };
 
-var getSuffix = function(fullUrl, prefix) {
+let getSuffix = function(fullUrl, prefix) {
     return fullUrl.slice(prefix.length);
 };
 
-var server = http.createServer(function(request, response) {
+let getContactsRoute = function (request, response) {
+    response.end(JSON.stringify(contacts));
+};
+
+let postContactsRoute = function (request, response) {
+    readBody(request, function (body) {
+        let contact = JSON.parse(body);
+        contact.id = ++lastId;
+        console.log(contact);
+        contacts.push(contact);
+        response.end('Created contact!');
+    });
+};
+
+let deleteContactRoute = function (request, response) {
+    let id = getSuffix(request.url, '/contacts/');
+    let contact = findContact(id);
+    deleteContact(contact);
+    console.log(contact);
+    response.end('Deleted contact!');
+};
+
+let getContactRoute = function (request, response) {
+    let id = getSuffix(request.url, '/contacts/');
+    let contact = findContact(id);
+    response.end(JSON.stringify(contact));
+};
+
+let putContactRoute = function (request, response) {
+    let id = getSuffix(request.url, '/contacts/');
+    let contact = findContact(id);
+    readBody(request, function (body) {
+        let newParams = JSON.parse(body);
+        console.log(newParams);
+        Object.assign(contact, newParams);
+        response.end('Updated contact!');
+    });
+};
+
+let notFound = function (request, response) {
+    response.statusCode = 404;
+    response.end('404, nothing here!');
+};
+
+let routes = [
+    { method: 'DELETE', path: '/contacts/', handler: deleteContactRoute },
+    { method: 'GET', path: '/contacts/', handler: getContactRoute },
+    { method: 'PUT', path: '/contacts/', handler: putContactRoute },
+    { method: 'GET', path: '/contacts', handler: getContactsRoute },
+    { method: 'POST', path: '/contacts', handler: postContactsRoute },
+];
+
+let server = http.createServer(function (request, response) {
     console.log(request.method, request.url);
 
-    if (matches(request, 'GET', '/contacts')) {
-        response.end(JSON.stringify(contacts));
-    } else if (matches(request, 'POST', '/contacts')) {
-        readBody(request, function(body) {
-            var contact = JSON.parse(body);
-            contact.id = ++lastId;
-            console.log(contact);
-            contacts.push(contact);
-            response.end('Created contact!');
-        });
-    } else if (matches(request, 'DELETE', '/contacts/')) {
-        var id = getSuffix(request.url, '/contacts/');
-        var contact = findContact(id);
-        deleteContact(contact);
-        console.log(contact);
-        response.end('Deleted contact!');
-    } else if (matches(request, 'GET', '/contacts/')) {
-        var id = getSuffix(request.url, '/contacts/');
-        var contact = findContact(id);
-        response.end(JSON.stringify(contact));
-    } else if (matches(request, 'PUT', '/contacts/')) {
-        var id = getSuffix(request.url, '/contacts/');
-        var contact = findContact(id);
-        readBody(request, function(body) {
-            var newParams = JSON.parse(body);
-            Object.assign(contact, newParams);
-            response.end('Updated contact!');
-        });
-    } else {
-        response.end('404, nothing here!');
-    }
+    let route = routes.find(function (route) {
+        return matches(request, route.method, route.path);
+    });
+
+    (route ? route.handler : notFound)(request, response);
+
 });
 
 server.listen(3000);
