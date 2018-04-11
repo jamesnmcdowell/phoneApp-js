@@ -1,26 +1,25 @@
 const http = require('http');
+const fs = require('fs');
+const util = require('util');
+const readFile = util.promisify(fs.readFile);
 
-let contacts = [
-    { id: 0, first: 'James', last: 'Dougal', email: 'james@gmail.com' },
-    { id: 1, first: 'Rebecca', last: 'Martin', email: 'rebecca@gmail.com' },
-    { id: 2, first: 'Laura', last: 'Love', email: 'laura@gmail.com' },
-];
+const {
+    addContact,
+    getAllContacts,
+    deleteContact,
+    updateContact,
+    getSingleContact
+} = require('../database');
 
-let lastId = 2;
-
-let findContact = id => {
-    id = parseInt(id, 10);
-    return contacts.find(contact => contact.id === id);
-};
-
-let deleteContact = contactToDelete => {
-    contacts = contacts.filter(contact => contact !== contactToDelete);
-};
-
-let readBody = (request, callback) => {
-    let body = '';
-    request.on('data', chunk => { body += chunk.toString() });
-    request.on('end', () => { callback(body) });
+let readBody = (request) => {
+    return new Promise((resolve, reject) => {
+        let body = '';
+        request.on('data', chunk => { body += chunk.toString() });
+        request.on('end', () => { resolve(body) });
+        request.on('error', (err) => {
+            reject(err);
+        });
+    });
 };
 
 let matches = (request, method, path) => {
@@ -30,39 +29,42 @@ let matches = (request, method, path) => {
 
 let getSuffix = (fullUrl, prefix) => fullUrl.slice(prefix.length);
 
-let getContactsRoute = (request, response) => { response.end(JSON.stringify(contacts)) };
-
-let postContactsRoute = (request, response) => {
-    readBody(request, (body) => {
-        let contact = JSON.parse(body);
-        contact.id = ++lastId;
-        contacts.push(contact);
-        response.end('Created contact!');
-    });
+let getContactsRoute = async (req, res) => {
+    let results = await getAllContacts();
+    res.setHeader("Access-Control-Allow-Origin", "*"); 
+    res.end(JSON.stringify(results));
 };
 
-let deleteContactRoute = (request, response, params) => {
-    let id = params[0];
-    let contact = findContact(id);
-    deleteContact(contact);
-    console.log(contact);
+let postContactsRoute = async (request, response) => {
+    let results = await readBody(request);
+    let contact = JSON.parse(results);
+    try {
+        let results = await addContact(contact);
+        response.end('contact posted');
+    } catch (error) {
+        response.end(error);
+    };
+};
+
+let deleteContactRoute = async (request, response, params) => {
+    let userid = params[0];
+    let result = await deleteContact(userid);
     response.end('Deleted contact!');
 };
 
-let getContactRoute = (request, response, params) => {
-    let id = params[0];
-    let contact = findContact(id);
-    response.end(JSON.stringify(contact));
+let getContactRoute = async (request, response, params) => {
+    let userid = params[0];
+    let result = await getSingleContact(userid);
+    response.end(JSON.stringify(result));
 };
 
-let putContactRoute = (request, response) => {
-    let id = getSuffix(request.url, '/contacts/');
-    let contact = findContact(id);
-    readBody(request, (body) => {
-        let newParams = JSON.parse(body);
-        Object.assign(contact, newParams);
-        response.end('Updated contact!');
-    });
+let putContactRoute = async (request, response) => {
+    let userid = getSuffix(request.url, '/contacts/');
+    let result = await readBody(request);
+    let newParams = JSON.parse(result);
+    console.log(newParams);
+    updateContact(newParams);
+    response.end('Updated contact!');
 };
 
 let notFound = (request, response) => {
@@ -70,26 +72,38 @@ let notFound = (request, response) => {
     response.end('404, nothing here!');
 };
 
+let renderHtml = (response, html) => { response.end( html) };
+
+let renderPage = async (request, response) => {
+    try {
+        let html = await readFile(`../Phonebook_Frontend${request.url}`, 'utf8');
+        response.end(html);
+    }
+    catch (error) {
+        let params = [];
+        let matchedRoute;
+        for (let route of routes) {
+            let match = matches(request, route.method, route.path);
+            if (match) { 
+                matchedRoute = route;
+                params = match;
+                break;
+            }
+        }
+        (matchedRoute ? matchedRoute.handler : notFound)(request, response, params);    
+    };  
+};
+
 let routes = [
     { method: 'DELETE', path: /^\/contacts\/([0-9]+)$/, handler: deleteContactRoute },
     { method: 'GET', path: /^\/contacts\/([0-9]+)$/, handler: getContactRoute },
     { method: 'PUT', path: /^\/contacts\/([0-9]+)$/, handler: putContactRoute },
     { method: 'GET', path: /^\/contacts\/?$/, handler: getContactsRoute },
-    { method: 'POST', path: /^\/contacts\/?$/ , handler: postContactsRoute },
+    { method: 'POST', path: /^\/contacts\/?$/, handler: postContactsRoute },
 ];
 
 let server = http.createServer((request, response) => {
-    console.log(request.method, request.url);
-    let params = [];
-    let matchedRoute;
-    for (let route of routes ) {
-        let match = matches(request, route.method, route.path);
-        if (match) {
-            matchedRoute = route;
-            params = match;
-            break;
-        }
-    }
-    (matchedRoute ? matchedRoute.handler : notFound)(request, response, params);
+    renderPage(request, response); 
 });
+
 server.listen(3000);

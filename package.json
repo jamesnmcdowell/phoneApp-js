@@ -1,0 +1,23 @@
+{
+  "name": "phoneApp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "database.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jamesnmcdowell/phoneApp-js.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jamesnmcdowell/phoneApp-js/issues"
+  },
+  "homepage": "https://github.com/jamesnmcdowell/phoneApp-js#readme",
+  "dependencies": {
+    "pg-promise": "^8.2.2"
+  }
+}

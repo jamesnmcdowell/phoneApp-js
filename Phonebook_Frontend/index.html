@@ -1,0 +1,40 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>Phonebook</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+  </head>
+  <body>
+    <h1>PHONEBOOK!</h1>
+    <form>
+      <div class="input-field">
+        <input id="first_name" type="text" class="validate" name='firstName'>
+        <label for="first_name">First Name</label>
+      </div>
+      <div class="input-field">
+        <input id="last_name" type="text" class="validate" name='lastName'>
+        <label for="last_name">Last Name</label>
+      </div>
+      <div class="input-field">
+        <input name='emailAddress' id="email" type="email" >
+        <label for="email">Email</label>
+      </div>
+      <button type="submit" class =" add-contact">Submit</button>
+      <button type="reset" class="btn btn-default">Reset</button>
+    </form>
+
+    <ul class="contacts">
+    </ul>
+    <template id="contact-template">
+      <li class="contact">
+        <p class="contact-userid"></p>
+        <h2 class="contact-firstname"><h2>
+        <h2 class="contact-lastname"><h2>
+        <p class="contact-email"></p>
+        <button class="contact-remove">Remove</button>
+      </li>
+    </template>
+    <script src="main.js"></script>
+  </body>
+</html>
